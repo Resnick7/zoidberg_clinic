@@ -1,13 +1,25 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'firebase_options.dart';
+
+// Handler para mensajes en background
+Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
+  print("🔔 Mensaje en background: ${message.messageId}");
+}
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
+
+  // Registrar handler global de background
+  FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+
   runApp(const MyApp());
 }
 
@@ -16,66 +28,73 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      home: AuthTestPage(),
+    return const MaterialApp(
+      debugShowCheckedModeBanner: false,
+      home: FCMTestPage(),
     );
   }
 }
 
-class AuthTestPage extends StatefulWidget {
+class FCMTestPage extends StatefulWidget {
+  const FCMTestPage({super.key});
+
   @override
-  _AuthTestPageState createState() => _AuthTestPageState();
+  State<FCMTestPage> createState() => _FCMTestPageState();
 }
 
-class _AuthTestPageState extends State<AuthTestPage> {
-  final _emailController = TextEditingController();
-  final _passwordController = TextEditingController();
-  String _status = "No logueado";
+class _FCMTestPageState extends State<FCMTestPage> {
+  String? _token;
+  String _messages = "Esperando mensajes...";
 
-  Future<void> _register() async {
-    try {
-      await FirebaseAuth.instance.createUserWithEmailAndPassword(
-        email: _emailController.text.trim(),
-        password: _passwordController.text.trim(),
-      );
-      setState(() => _status = "Usuario registrado!");
-    } catch (e) {
-      setState(() => _status = "Error: $e");
-    }
+  @override
+  void initState() {
+    super.initState();
+    _initFCM();
   }
 
-  Future<void> _login() async {
-    try {
-      await FirebaseAuth.instance.signInWithEmailAndPassword(
-        email: _emailController.text.trim(),
-        password: _passwordController.text.trim(),
-      );
-      setState(() => _status = "Usuario logueado!");
-    } catch (e) {
-      setState(() => _status = "Error: $e");
-    }
+  Future<void> _initFCM() async {
+    // Pedir permisos en Android 13+ y iOS
+    NotificationSettings settings =
+    await FirebaseMessaging.instance.requestPermission(
+      alert: true,
+      badge: true,
+      sound: true,
+    );
+
+    print("🟢 Permisos: ${settings.authorizationStatus}");
+
+    // Obtener token del dispositivo
+    String? token = await FirebaseMessaging.instance.getToken();
+    setState(() => _token = token);
+    print("📱 Token: $token");
+
+    // Escuchar mensajes en foreground
+    FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+      print("🔥 Mensaje en foreground: ${message.notification?.title}");
+      setState(() {
+        _messages =
+        "Título: ${message.notification?.title}\nCuerpo: ${message.notification?.body}";
+      });
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("Firebase Auth Test")),
+      appBar: AppBar(title: const Text("Test FCM")),
       body: Padding(
-        padding: const EdgeInsets.all(16.0),
+        padding: const EdgeInsets.all(16),
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            TextField(controller: _emailController, decoration: const InputDecoration(labelText: "Email")),
-            TextField(controller: _passwordController, obscureText: true, decoration: const InputDecoration(labelText: "Contraseña")),
-            const SizedBox(height: 16),
-            ElevatedButton(onPressed: _register, child: const Text("Registrar")),
-            ElevatedButton(onPressed: _login, child: const Text("Iniciar Sesión")),
-            const SizedBox(height: 16),
-            Text(_status),
+            const Text("📱 Token del dispositivo:"),
+            SelectableText(_token ?? "Generando..."),
+            const SizedBox(height: 20),
+            const Text("📩 Último mensaje recibido:"),
+            Text(_messages),
           ],
         ),
       ),
     );
   }
 }
-
