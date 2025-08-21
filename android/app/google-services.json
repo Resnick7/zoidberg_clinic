@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "966252476835",
+    "project_id": "zoidbergclinicid",
+    "storage_bucket": "zoidbergclinicid.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:966252476835:android:e62d51dfd2ca7061fa4216",
+        "android_client_info": {
+          "package_name": "com.zoidberg.zoidberg_clinic"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCYvpsrRhYPU7iwTe-JuHGaMcKYUU1CW3s"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
