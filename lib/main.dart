@@ -2,21 +2,16 @@ import 'package:flutter/material.dart';
 import 'dart:math';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart'; // Este archivo se genera al conectar tu app con Firebase
-
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 void main() async {
-  // Asegurarse de que los widgets de Flutter estén inicializados
   WidgetsFlutterBinding.ensureInitialized();
-
-  // Inicializar Firebase
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
-
   runApp(const ZoidbergClinicApp());
 }
-
-// void main() => runApp(const ZoidbergClinicApp());
 
 class ZoidbergClinicApp extends StatelessWidget {
   const ZoidbergClinicApp({super.key});
@@ -26,7 +21,6 @@ class ZoidbergClinicApp extends StatelessWidget {
     return MaterialApp(
       title: 'ClinicHealth del Dr. Zoidberg',
       theme: ThemeData(
-        // MaterialColor personalizado con rojo predominante (cumple con restricción de estilo)
         primarySwatch: MaterialColor(0xFFB71C1C, {
           50: const Color(0xFFFFEBEE),
           100: const Color(0xFFFFCDD2),
@@ -39,13 +33,24 @@ class ZoidbergClinicApp extends StatelessWidget {
           800: const Color(0xFFC62828),
           900: const Color(0xFFB71C1C),
         }),
-        scaffoldBackgroundColor: const Color(0xFFFFE5E5), // Fondo rojo claro
+        scaffoldBackgroundColor: const Color(0xFFFFE5E5),
         appBarTheme: const AppBarTheme(
           backgroundColor: Color(0xFFB71C1C),
           foregroundColor: Colors.white,
         ),
       ),
-      home: const AuthScreen(),
+      // Usar StreamBuilder para manejar el estado de autenticación
+      home: StreamBuilder<User?>(
+        stream: FirebaseAuth.instance.authStateChanges(),
+        builder: (context, snapshot) {
+          // Si el usuario está autenticado, mostrar la pantalla principal
+          if (snapshot.hasData) {
+            return const MainScreen();
+          }
+          // Si no, mostrar la pantalla de login
+          return const AuthScreen();
+        },
+      ),
       routes: {
         '/main': (context) => const MainScreen(),
         '/appointments': (context) => const AppointmentsScreen(),
@@ -58,6 +63,7 @@ class ZoidbergClinicApp extends StatelessWidget {
     );
   }
 }
+
 
 // Función de traducción - Implementa el requerimiento de traductor a Decapodiano
 String _translateText(String text, bool isDecapodianMode) {
@@ -169,6 +175,9 @@ String _translateText(String text, bool isDecapodianMode) {
 }
 
 // Pantalla de autenticación - Implementa el requerimiento de autenticación
+// import 'package:flutter/material.dart';
+// import 'package:firebase_auth/firebase_auth.dart';
+
 class AuthScreen extends StatefulWidget {
   const AuthScreen({super.key});
 
@@ -177,30 +186,45 @@ class AuthScreen extends StatefulWidget {
 }
 
 class _AuthScreenState extends State<AuthScreen> {
-  // Controladores para los campos de texto (Input handling)
-  final _usernameController = TextEditingController();
+  final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _isLoading = false;
   bool _isDecapodianMode = false;
 
-  // Función de login - Implementa autenticación básica
   void _login() async {
     setState(() {
       _isLoading = true;
     });
 
-    // Simulando autenticación con retraso para mostrar el indicador de carga
-    await Future.delayed(const Duration(seconds: 2));
+    try {
+      // Iniciar sesión con Firebase Authentication
+      await FirebaseAuth.instance.signInWithEmailAndPassword(
+        email: _emailController.text,
+        password: _passwordController.text,
+      );
 
-    if (_usernameController.text == 'zoidberg' &&
-        _passwordController.text == 'medicine') {
-      // Navegación a pantalla principal si las credenciales son correctas
-      Navigator.pushReplacementNamed(context, '/main');
-    } else {
-      // Mostrar mensaje de error si las credenciales son incorrectas
+      // Si el inicio de sesión es exitoso, el StreamBuilder en main.dart redirigirá a la pantalla principal
+    } on FirebaseAuthException catch (e) {
+      // Manejar errores de autenticación
+      String errorMessage;
+      if (e.code == 'user-not-found') {
+        errorMessage = 'No se encontró un usuario con ese email.';
+      } else if (e.code == 'wrong-password') {
+        errorMessage = 'Contraseña incorrecta.';
+      } else {
+        errorMessage = 'Error al iniciar sesión: ${e.message}';
+      }
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(_translateText('¡Hooray! Credenciales incorrectas. ¿Por qué no Zoidberg?', _isDecapodianMode)),
+          content: Text(_translateText(errorMessage, _isDecapodianMode)),
+          backgroundColor: const Color(0xFFB71C1C),
+        ),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(_translateText('Error inesperado: $e', _isDecapodianMode)),
           backgroundColor: const Color(0xFFB71C1C),
         ),
       );
@@ -218,7 +242,6 @@ class _AuthScreenState extends State<AuthScreen> {
         title: Text(_translateText('ClinicHealth del Dr. Zoidberg', _isDecapodianMode)),
         centerTitle: true,
         actions: [
-          // Botón de traductor en la esquina superior derecha (cumple con el requerimiento)
           IconButton(
             onPressed: () {
               setState(() {
@@ -234,7 +257,7 @@ class _AuthScreenState extends State<AuthScreen> {
         child: Container(
           margin: const EdgeInsets.all(20),
           child: Card(
-            elevation: 8, // Sombra para dar profundidad (Material Design)
+            elevation: 8,
             color: Colors.white,
             child: Padding(
               padding: const EdgeInsets.all(24),
@@ -265,20 +288,19 @@ class _AuthScreenState extends State<AuthScreen> {
                     ),
                   ),
                   const SizedBox(height: 30),
-                  // Campo de texto para usuario (Input handling)
                   TextField(
-                    controller: _usernameController,
+                    controller: _emailController,
                     decoration: InputDecoration(
-                      labelText: _translateText('Usuario', _isDecapodianMode),
+                      labelText: _translateText('Email', _isDecapodianMode),
                       border: const OutlineInputBorder(),
-                      prefixIcon: const Icon(Icons.person),
+                      prefixIcon: const Icon(Icons.email),
                     ),
+                    keyboardType: TextInputType.emailAddress,
                   ),
                   const SizedBox(height: 16),
-                  // Campo de texto para contraseña (Input handling)
                   TextField(
                     controller: _passwordController,
-                    obscureText: true, // Oculta el texto para contraseñas
+                    obscureText: true,
                     decoration: InputDecoration(
                       labelText: _translateText('Contraseña', _isDecapodianMode),
                       border: const OutlineInputBorder(),
@@ -304,7 +326,7 @@ class _AuthScreenState extends State<AuthScreen> {
                   ),
                   const SizedBox(height: 10),
                   Text(
-                    _translateText('Credenciales: zoidberg / medicine', _isDecapodianMode),
+                    _translateText('Ingresa con tu cuenta de doctor', _isDecapodianMode),
                     style: const TextStyle(fontSize: 12, color: Colors.grey),
                   ),
                 ],
@@ -317,7 +339,15 @@ class _AuthScreenState extends State<AuthScreen> {
   }
 }
 
+
+
+
+
 // Pantalla principal con menú - Implementa el diseño de UI con GridView
+
+
+
+
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
 
@@ -334,7 +364,6 @@ class _MainScreenState extends State<MainScreen> {
       appBar: AppBar(
         title: Text(_translateText('ClinicHealth - Dr. Zoidberg', _isDecapodianMode)),
         actions: [
-          // Botón de traductor en la esquina superior derecha
           IconButton(
             onPressed: () {
               setState(() {
@@ -346,7 +375,8 @@ class _MainScreenState extends State<MainScreen> {
           ),
           IconButton(
             onPressed: () {
-              Navigator.pushReplacementNamed(context, '/');
+              // Cerrar sesión
+              FirebaseAuth.instance.signOut();
             },
             icon: const Icon(Icons.logout),
           ),
