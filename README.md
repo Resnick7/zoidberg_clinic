@@ -1,4 +1,4 @@
-# zoidberg_clinic
+# zoidberg
 
 A new Flutter project.
 

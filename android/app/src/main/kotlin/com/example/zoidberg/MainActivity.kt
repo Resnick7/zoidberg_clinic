@@ -1,4 +1,4 @@
-package com.zoidberg.zoidberg_clinic
+package com.example.zoidberg
 
 import io.flutter.embedding.android.FlutterActivity
 

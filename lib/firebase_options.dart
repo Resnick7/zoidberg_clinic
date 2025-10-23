@@ -17,29 +17,20 @@ import 'package:flutter/foundation.dart'
 class DefaultFirebaseOptions {
   static FirebaseOptions get currentPlatform {
     if (kIsWeb) {
-      throw UnsupportedError(
-        'DefaultFirebaseOptions have not been configured for web - '
-        'you can reconfigure this by running the FlutterFire CLI again.',
-      );
+      return web;
     }
     switch (defaultTargetPlatform) {
       case TargetPlatform.android:
         return android;
       case TargetPlatform.iOS:
-        throw UnsupportedError(
-          'DefaultFirebaseOptions have not been configured for ios - '
-          'you can reconfigure this by running the FlutterFire CLI again.',
-        );
+        return ios;
       case TargetPlatform.macOS:
         throw UnsupportedError(
           'DefaultFirebaseOptions have not been configured for macos - '
           'you can reconfigure this by running the FlutterFire CLI again.',
         );
       case TargetPlatform.windows:
-        throw UnsupportedError(
-          'DefaultFirebaseOptions have not been configured for windows - '
-          'you can reconfigure this by running the FlutterFire CLI again.',
-        );
+        return windows;
       case TargetPlatform.linux:
         throw UnsupportedError(
           'DefaultFirebaseOptions have not been configured for linux - '
@@ -53,11 +44,40 @@ class DefaultFirebaseOptions {
   }
 
   static const FirebaseOptions android = FirebaseOptions(
-    apiKey: 'AIzaSyCYvpsrRhYPU7iwTe-JuHGaMcKYUU1CW3s',
-    appId: '1:966252476835:android:e62d51dfd2ca7061fa4216',
-    messagingSenderId: '966252476835',
-    projectId: 'zoidbergclinicid',
-    storageBucket: 'zoidbergclinicid.firebasestorage.app',
+    apiKey: 'AIzaSyBkiA8agiib6ml4hDkX6chfTidOeHlvf3A',
+    appId: '1:881112476381:android:7911593daf1880de77c934',
+    messagingSenderId: '881112476381',
+    projectId: 'zoidberg-app',
+    storageBucket: 'zoidberg-app.firebasestorage.app',
+  );
+
+  static const FirebaseOptions ios = FirebaseOptions(
+    apiKey: 'AIzaSyBPSS0ICPMlfwyYvUywTXV7Bmk85W9dxHU',
+    appId: '1:881112476381:ios:00c43495bf8ecd5577c934',
+    messagingSenderId: '881112476381',
+    projectId: 'zoidberg-app',
+    storageBucket: 'zoidberg-app.firebasestorage.app',
+    iosBundleId: 'com.example.zoidberg',
+  );
+
+  static const FirebaseOptions web = FirebaseOptions(
+    apiKey: 'AIzaSyBybt2c2p2b3F1p6tdiC8PyIrUOwoaQKpQ',
+    appId: '1:881112476381:web:b3f39524b4f3db5877c934',
+    messagingSenderId: '881112476381',
+    projectId: 'zoidberg-app',
+    authDomain: 'zoidberg-app.firebaseapp.com',
+    storageBucket: 'zoidberg-app.firebasestorage.app',
+    measurementId: 'G-J2W70LZM1Z',
+  );
+
+  static const FirebaseOptions windows = FirebaseOptions(
+    apiKey: 'AIzaSyBybt2c2p2b3F1p6tdiC8PyIrUOwoaQKpQ',
+    appId: '1:881112476381:web:8a789cc961fa336077c934',
+    messagingSenderId: '881112476381',
+    projectId: 'zoidberg-app',
+    authDomain: 'zoidberg-app.firebaseapp.com',
+    storageBucket: 'zoidberg-app.firebasestorage.app',
+    measurementId: 'G-RF80CPS16V',
   );
 
 }
