@@ -79,3 +79,8 @@ npm-debug.log*
 
 # Firestore local
 firestore-debug.log
+
+
+# Configuración individual
+lib/firebase_options.dart
+linux/CMakeLists.txt
