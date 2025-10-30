@@ -1,8 +1,5 @@
-// Pantalla de pacientes - Implementa el requerimiento de historial médico de pacientes
-
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import '../services/translation_service.dart';
 
 class PatientsScreen extends StatefulWidget {
@@ -15,6 +12,7 @@ class PatientsScreen extends StatefulWidget {
 class _PatientsScreenState extends State<PatientsScreen> {
   bool _isDecapodianMode = false;
 
+  // Referencia a la colección de pacientes (sin filtros)
   final CollectionReference patients = FirebaseFirestore.instance.collection('patients');
 
   @override
@@ -59,29 +57,46 @@ class _PatientsScreenState extends State<PatientsScreen> {
 
           Expanded(
             child: StreamBuilder<QuerySnapshot>(
-              stream: patients
-                  .where('doctorId', isEqualTo: FirebaseAuth.instance.currentUser?.uid)
-                  .snapshots(),
+              // CONSULTA SIMPLIFICADA: Obtener todos los pacientes sin filtrar
+              stream: patients.snapshots(),
               builder: (BuildContext context, AsyncSnapshot<QuerySnapshot> snapshot) {
+                // Manejo de errores
                 if (snapshot.hasError) {
+                  print('Error en StreamBuilder: ${snapshot.error}');
                   return Text(translateText('Error al cargar pacientes', _isDecapodianMode));
                 }
 
+                // Indicador de carga
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return const Center(child: CircularProgressIndicator());
                 }
 
+                // Verificar si hay documentos
+                if (snapshot.data!.docs.isEmpty) {
+                  print('No se encontraron documentos en la colección patients');
+                  return Center(
+                    child: Text(translateText('No hay pacientes registrados', _isDecapodianMode)),
+                  );
+                }
+
+                print('Número de documentos recibidos: ${snapshot.data!.docs.length}');
+
+                // Convertir documentos a lista de mapas
                 List<Map<String, dynamic>> patientsList = snapshot.data!.docs.map((DocumentSnapshot doc) {
                   Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
                   data['id'] = doc.id;
+                  print('Procesando paciente: ${data.toString()}');
                   return data;
                 }).toList();
 
+                // Construir la lista de pacientes
                 return ListView.builder(
                   padding: const EdgeInsets.all(16),
                   itemCount: patientsList.length,
                   itemBuilder: (context, index) {
                     final patient = patientsList[index];
+                    print('Mostrando paciente: ${patient['name']}');
+
                     return Card(
                       margin: const EdgeInsets.only(bottom: 16),
                       child: Padding(
@@ -98,14 +113,14 @@ class _PatientsScreenState extends State<PatientsScreen> {
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
                                       Text(
-                                        patient['name'],
+                                        patient['name'] ?? 'Sin nombre',
                                         style: const TextStyle(
                                           fontSize: 18,
                                           fontWeight: FontWeight.bold,
                                           color: Color(0xFFB71C1C),
                                         ),
                                       ),
-                                      Text(translateText('Edad: ${patient['age']} años', _isDecapodianMode)),
+                                      Text(translateText('Edad: ${patient['age'] ?? 0} años', _isDecapodianMode)),
                                     ],
                                   ),
                                 ),
@@ -125,13 +140,13 @@ class _PatientsScreenState extends State<PatientsScreen> {
                                     translateText('Condición:', _isDecapodianMode),
                                     style: const TextStyle(fontWeight: FontWeight.bold),
                                   ),
-                                  Text(translateText(patient['condition'], _isDecapodianMode)),
+                                  Text(translateText(patient['condition'] ?? 'Sin condición', _isDecapodianMode)),
                                   const SizedBox(height: 8),
                                   Text(
                                     translateText('Historial:', _isDecapodianMode),
                                     style: const TextStyle(fontWeight: FontWeight.bold),
                                   ),
-                                  Text(translateText(patient['history'], _isDecapodianMode)),
+                                  Text(translateText(patient['history'] ?? 'Sin historial', _isDecapodianMode)),
                                 ],
                               ),
                             ),
@@ -219,23 +234,30 @@ class _PatientsScreenState extends State<PatientsScreen> {
                     conditionController.text.isNotEmpty &&
                     historyController.text.isNotEmpty) {
 
-                  // Obtener el usuario actual
-                  final User? user = FirebaseAuth.instance.currentUser;
-                  String doctorId = user?.uid ?? '';
+                  print('Guardando paciente sin doctorId');
 
-                  await patients.add({
-                    'name': nameController.text,
-                    'age': int.parse(ageController.text),
-                    'condition': conditionController.text,
-                    'history': historyController.text,
-                    'doctorId': doctorId, // Asociar el paciente con el doctor
-                  });
+                  try {
+                    // GUARDAR PACIENTE SIN CAMPO doctorId
+                    await patients.add({
+                      'name': nameController.text,
+                      'age': int.parse(ageController.text),
+                      'condition': conditionController.text,
+                      'history': historyController.text,
+                      // No incluimos doctorId porque no es necesario
+                    });
 
-                  Navigator.of(context).pop();
+                    Navigator.of(context).pop();
 
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text(translateText('Paciente agregado con éxito', _isDecapodianMode))),
-                  );
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text(translateText('Paciente agregado con éxito', _isDecapodianMode))),
+                    );
+                  } catch (e) {
+                    print('Error al guardar paciente: $e');
+                    Navigator.of(context).pop();
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text(translateText('Error al agregar paciente: $e', _isDecapodianMode))),
+                    );
+                  }
                 }
               },
               child: Text(translateText('Guardar', _isDecapodianMode)),

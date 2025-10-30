@@ -1,8 +1,5 @@
-// Pantalla de citas - Implementa el requerimiento de sistema para agendar citas
-
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import '../services/translation_service.dart';
 
 class AppointmentsScreen extends StatefulWidget {
@@ -27,25 +24,29 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
       String timeString = '${_selectedTime.hour}:${_selectedTime.minute.toString().padLeft(2, '0')}';
       String qrCode = 'QR-${DateTime.now().millisecondsSinceEpoch}';
 
-      // Obtener el usuario actual
-      final User? user = FirebaseAuth.instance.currentUser;
-      String doctorId = user?.uid ?? '';
+      try {
+        // GUARDAR CITA SIN CAMPO doctorId
+        await appointments.add({
+          'patient': _patientController.text,
+          'reason': _reasonController.text,
+          'date': dateTimestamp,
+          'time': timeString,
+          'qrCode': qrCode,
+          // No incluimos doctorId porque no es necesario
+        });
 
-      await appointments.add({
-        'patient': _patientController.text,
-        'reason': _reasonController.text,
-        'date': dateTimestamp,
-        'time': timeString,
-        'qrCode': qrCode,
-        'doctorId': doctorId, // Asociar la cita con el doctor
-      });
+        _patientController.clear();
+        _reasonController.clear();
 
-      _patientController.clear();
-      _reasonController.clear();
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(translateText('¡Cita agendada! ¿Por qué no Zoidberg como doctor?', _isDecapodianMode))),
-      );
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(translateText('¡Cita agendada! ¿Por qué no Zoidberg como doctor?', _isDecapodianMode))),
+        );
+      } catch (e) {
+        print('Error al guardar cita: $e');
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(translateText('Error al agendar cita: $e', _isDecapodianMode))),
+        );
+      }
     }
   }
 
@@ -106,11 +107,12 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
                             subtitle: Text('${_selectedDate.day}/${_selectedDate.month}/${_selectedDate.year}'),
                             leading: const Icon(Icons.calendar_today),
                             onTap: () async {
+                              // MODIFICACIÓN: Selector de fecha sin límite de un año
                               final date = await showDatePicker(
                                 context: context,
                                 initialDate: _selectedDate,
-                                firstDate: DateTime.now(),
-                                lastDate: DateTime.now().add(const Duration(days: 365)),
+                                firstDate: DateTime.now(), // Permitir desde hoy en adelante
+                                lastDate: DateTime(2100), // Permitir hasta el año 2100 (casi sin límite)
                               );
                               if (date != null) {
                                 setState(() {
@@ -161,11 +163,11 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
 
             Expanded(
               child: StreamBuilder<QuerySnapshot>(
-                stream: appointments
-                    .where('doctorId', isEqualTo: FirebaseAuth.instance.currentUser?.uid)
-                    .snapshots(),
+                // CONSULTA SIMPLIFICADA: Obtener todas las citas sin filtrar
+                stream: appointments.snapshots(),
                 builder: (BuildContext context, AsyncSnapshot<QuerySnapshot> snapshot) {
                   if (snapshot.hasError) {
+                    print('Error en StreamBuilder: ${snapshot.error}');
                     return Text(translateText('Error al cargar citas', _isDecapodianMode));
                   }
 
@@ -173,9 +175,19 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
                     return const Center(child: CircularProgressIndicator());
                   }
 
+                  if (snapshot.data!.docs.isEmpty) {
+                    print('No se encontraron documentos en la colección appointments');
+                    return Center(
+                      child: Text(translateText('No hay citas programadas', _isDecapodianMode)),
+                    );
+                  }
+
+                  print('Número de citas recibidas: ${snapshot.data!.docs.length}');
+
                   List<Map<String, dynamic>> appointmentsList = snapshot.data!.docs.map((DocumentSnapshot doc) {
                     Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
                     data['id'] = doc.id;
+                    print('Procesando cita: ${data.toString()}');
                     return data;
                   }).toList();
 
