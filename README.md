@@ -41,3 +41,7 @@ flutterfire configure
 
 # Después de clonar el repo
 flutter create --platforms=linux .
+
+
+# Para correr en chrome
+flutter run -d chrome

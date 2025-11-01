@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'dart:math';
 import 'package:firebase_core/firebase_core.dart';
-import 'firebase_options.dart'; // Este archivo se genera al conectar tu app con Firebase
+import 'firebase_options.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
@@ -13,16 +13,21 @@ import 'screens/main_screen.dart';
 import 'screens/patients_screen.dart';
 import 'screens/ratings_screen.dart';
 import 'screens/studies_screen.dart';
+import 'screens/view_appointments_screen.dart';
 
 import 'services/firebase_service.dart';
 import 'services/translation_service.dart';
-
+import 'services/notification_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
+
+  // // Inicializar notificaciones
+  // await NotificationService().initNotifications();
+
   runApp(const ZoidbergClinicApp());
 }
 
@@ -72,15 +77,8 @@ class ZoidbergClinicApp extends StatelessWidget {
         '/studies': (context) => const StudiesScreen(),
         '/checkin': (context) => const CheckInScreen(),
         '/ratings': (context) => const RatingsScreen(),
+        '/view_appointments': (context) => const ViewAppointmentsScreen(),
       },
     );
   }
 }
-
-
-
-
-
-
-
-

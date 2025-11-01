@@ -1,14 +1,14 @@
-// Pantalla principal con menú - Implementa el diseño de UI con GridView
-
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../services/translation_service.dart';
+import '../services/notification_service.dart';
 import 'appointments_screen.dart';
 import 'patients_screen.dart';
 import 'emergency_screen.dart';
 import 'studies_screen.dart';
 import 'checkin_screen.dart';
 import 'ratings_screen.dart';
+import 'view_appointments_screen.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -19,6 +19,16 @@ class MainScreen extends StatefulWidget {
 
 class _MainScreenState extends State<MainScreen> {
   bool _isDecapodianMode = false;
+
+  // @override
+  // void initState() {
+  //   super.initState();
+  //   _checkUpcomingAppointments();
+  // }
+
+  // void _checkUpcomingAppointments() async {
+  //   await NotificationService().checkForUpcomingAppointments();
+  // }
 
   @override
   Widget build(BuildContext context) {
@@ -84,6 +94,13 @@ class _MainScreenState extends State<MainScreen> {
                     Icons.calendar_today,
                     const AppointmentsScreen(),
                     translateText('"¡Necesitas una cita con el Dr. Zoidberg!"', _isDecapodianMode),
+                  ),
+                  _buildMenuCard(
+                    context,
+                    translateText('Ver Citas', _isDecapodianMode),
+                    Icons.event_note,
+                    const ViewAppointmentsScreen(),
+                    translateText('"¡Revisa tus próximas citas!"', _isDecapodianMode),
                   ),
                   _buildMenuCard(
                     context,
