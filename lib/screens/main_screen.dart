@@ -9,6 +9,7 @@ import 'studies_screen.dart';
 import 'checkin_screen.dart';
 import 'ratings_screen.dart';
 import 'view_appointments_screen.dart';
+import 'notification_settings_screen.dart'; // AGREGAR ESTE IMPORT
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -19,16 +20,6 @@ class MainScreen extends StatefulWidget {
 
 class _MainScreenState extends State<MainScreen> {
   bool _isDecapodianMode = false;
-
-  // @override
-  // void initState() {
-  //   super.initState();
-  //   _checkUpcomingAppointments();
-  // }
-
-  // void _checkUpcomingAppointments() async {
-  //   await NotificationService().checkForUpcomingAppointments();
-  // }
 
   @override
   Widget build(BuildContext context) {
@@ -47,7 +38,6 @@ class _MainScreenState extends State<MainScreen> {
           ),
           IconButton(
             onPressed: () {
-              // Cerrar sesión
               FirebaseAuth.instance.signOut();
             },
             icon: const Icon(Icons.logout),
@@ -137,13 +127,13 @@ class _MainScreenState extends State<MainScreen> {
                     const RatingsScreen(),
                     translateText('"¡Siempre 5 estrellas!"', _isDecapodianMode),
                   ),
+                  // REEMPLAZAR LA CARD DE "Encriptar Datos" POR ESTA:
                   _buildMenuCard(
                     context,
-                    translateText('Encriptar Datos', _isDecapodianMode),
-                    Icons.security,
-                    null,
-                    translateText('"Súper seguro (no hace nada)"', _isDecapodianMode),
-                    onTap: () => _showEncryptionDialog(context),
+                    translateText('Notificaciones', _isDecapodianMode),
+                    Icons.notifications_active,
+                    const NotificationSettingsScreen(),
+                    translateText('"Configura recordatorios"', _isDecapodianMode),
                   ),
                 ],
               ),
@@ -198,24 +188,6 @@ class _MainScreenState extends State<MainScreen> {
           ),
         ),
       ),
-    );
-  }
-
-  void _showEncryptionDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: Text(translateText('Encriptación Activada', _isDecapodianMode)),
-          content: Text(translateText('¡Hooray! Tus datos están súper seguros ahora. (No realmente, pero suena bien)', _isDecapodianMode)),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: Text(translateText('¡Perfecto!', _isDecapodianMode)),
-            ),
-          ],
-        );
-      },
     );
   }
 }
