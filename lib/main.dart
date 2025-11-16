@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
-import 'dart:math';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 import 'screens/appointments_screen.dart';
@@ -14,9 +12,8 @@ import 'screens/patients_screen.dart';
 import 'screens/ratings_screen.dart';
 import 'screens/studies_screen.dart';
 import 'screens/view_appointments_screen.dart';
+import 'screens/notification_settings_screen.dart'; // AGREGAR ESTA LÍNEA
 
-import 'services/firebase_service.dart';
-import 'services/translation_service.dart';
 import 'services/notification_service.dart';
 
 void main() async {
@@ -25,8 +22,8 @@ void main() async {
     options: DefaultFirebaseOptions.currentPlatform,
   );
 
-  // // Inicializar notificaciones
-  // await NotificationService().initNotifications();
+  // Inicializar notificaciones
+  await NotificationService().initialize();
 
   runApp(const ZoidbergClinicApp());
 }
@@ -57,15 +54,12 @@ class ZoidbergClinicApp extends StatelessWidget {
           foregroundColor: Colors.white,
         ),
       ),
-      // Usar StreamBuilder para manejar el estado de autenticación
       home: StreamBuilder<User?>(
         stream: FirebaseAuth.instance.authStateChanges(),
         builder: (context, snapshot) {
-          // Si el usuario está autenticado, mostrar la pantalla principal
           if (snapshot.hasData) {
             return const MainScreen();
           }
-          // Si no, mostrar la pantalla de login
           return const AuthScreen();
         },
       ),
@@ -78,6 +72,7 @@ class ZoidbergClinicApp extends StatelessWidget {
         '/checkin': (context) => const CheckInScreen(),
         '/ratings': (context) => const RatingsScreen(),
         '/view_appointments': (context) => const ViewAppointmentsScreen(),
+        '/notification_settings': (context) => const NotificationSettingsScreen(), // AGREGAR ESTA LÍNEA
       },
     );
   }
