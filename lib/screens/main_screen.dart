@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../services/translation_service.dart';
-import '../services/notification_service.dart';
 import 'appointments_screen.dart';
 import 'patients_screen.dart';
 import 'emergency_screen.dart';
@@ -10,9 +9,13 @@ import 'checkin_screen.dart';
 import 'ratings_screen.dart';
 import 'view_appointments_screen.dart';
 import 'notification_settings_screen.dart'; // AGREGAR ESTE IMPORT
+import '../policies/app_policy.dart';
 
 class MainScreen extends StatefulWidget {
-  const MainScreen({super.key});
+  final AppPolicy appPolicy;
+
+
+  const MainScreen({super.key, required this.appPolicy});
 
   @override
   State<MainScreen> createState() => _MainScreenState();
@@ -117,7 +120,7 @@ class _MainScreenState extends State<MainScreen> {
                     context,
                     translateText('Check-in', _isDecapodianMode),
                     Icons.qr_code_scanner,
-                    const CheckInScreen(),
+                    CheckInScreen(appPolicy: widget.appPolicy),
                     translateText('"Escanea tu código QR"', _isDecapodianMode),
                   ),
                   _buildMenuCard(
@@ -144,8 +147,14 @@ class _MainScreenState extends State<MainScreen> {
     );
   }
 
-  Widget _buildMenuCard(BuildContext context, String title, IconData icon,
-      Widget? screen, String subtitle, {VoidCallback? onTap}) {
+  Widget _buildMenuCard(
+      BuildContext context,
+      String title,
+      IconData icon,
+      Widget? screen,
+      String subtitle, {
+        VoidCallback? onTap,
+      }) {
     return Card(
       elevation: 4,
       child: InkWell(

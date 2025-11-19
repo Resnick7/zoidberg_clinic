@@ -97,4 +97,3 @@ enum CameraAccessReason {
   permanentlyDenied,
   noHardware,
 }
-

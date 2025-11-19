@@ -15,6 +15,9 @@ import 'screens/view_appointments_screen.dart';
 import 'screens/notification_settings_screen.dart'; // AGREGAR ESTA LÍNEA
 
 import 'services/notification_service.dart';
+import 'capabilities/camera_capability.dart';
+import 'capabilities/notification_capability.dart';
+import 'policies/app_policy.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -33,6 +36,13 @@ class ZoidbergClinicApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cameraCapability = CameraCapability();
+    final notificationCapability = NotificationCapability();
+    final appPolicy = AppPolicy(
+      cameraCapability: cameraCapability,
+      notificationCapability: notificationCapability,
+    );
+
     return MaterialApp(
       title: 'ClinicHealth del Dr. Zoidberg',
       theme: ThemeData(
@@ -58,18 +68,18 @@ class ZoidbergClinicApp extends StatelessWidget {
         stream: FirebaseAuth.instance.authStateChanges(),
         builder: (context, snapshot) {
           if (snapshot.hasData) {
-            return const MainScreen();
+            return MainScreen(appPolicy: appPolicy);
           }
           return const AuthScreen();
         },
       ),
       routes: {
-        '/main': (context) => const MainScreen(),
+        '/main': (context) => MainScreen(appPolicy: appPolicy),
         '/appointments': (context) => const AppointmentsScreen(),
         '/patients': (context) => const PatientsScreen(),
         '/emergency': (context) => const EmergencyScreen(),
         '/studies': (context) => const StudiesScreen(),
-        '/checkin': (context) => const CheckInScreen(),
+        '/checkin': (context) => CheckInScreen(appPolicy: appPolicy),
         '/ratings': (context) => const RatingsScreen(),
         '/view_appointments': (context) => const ViewAppointmentsScreen(),
         '/notification_settings': (context) => const NotificationSettingsScreen(), // AGREGAR ESTA LÍNEA

@@ -2,24 +2,27 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../services/translation_service.dart';
-import '../capabilities/camera_capability.dart';
+import '../policies/app_policy.dart'; // Importar AppPolicy
+import '../capabilities/camera_capability.dart'; // AGREGAR ESTA IMPORTACIÓN
 import 'dart:math';
 
 class CheckInScreen extends StatefulWidget {
-  const CheckInScreen({super.key});
+  final AppPolicy appPolicy; // Inyectar AppPolicy
+
+  const CheckInScreen({super.key, required this.appPolicy});
 
   @override
   State<CheckInScreen> createState() => _CheckInScreenState();
 }
 
 class _CheckInScreenState extends State<CheckInScreen> {
-  final CameraCapability _cameraCapability = CameraCapability();
+  // Eliminar esta línea: final CameraCapability _cameraCapability = CameraCapability();
   String _scannedCode = '';
   bool _isScanning = false;
   bool _isDecapodianMode = false;
   String _statusMessage = '';
 
-  // Función actualizada con capability de cámara
+  // Función actualizada para usar la policy
   Future<void> _simulateQRScan() async {
     setState(() {
       _isScanning = true;
@@ -27,14 +30,12 @@ class _CheckInScreenState extends State<CheckInScreen> {
     });
 
     try {
-      // Solicitar acceso a cámara usando capability
-      final result = await _cameraCapability.requestCameraAccess();
+      // Usar la policy en lugar de la capability directamente
+      final result = await widget.appPolicy.cameraCapability.requestCameraAccess();
 
       if (result.success) {
-        // Permiso concedido - iniciar escaneo
         await _startScanning();
       } else {
-        // Manejar diferentes casos de fallo
         setState(() {
           _isScanning = false;
           _statusMessage = translateText(result.message, _isDecapodianMode);
@@ -105,6 +106,7 @@ class _CheckInScreenState extends State<CheckInScreen> {
     }
   }
 
+// Versión corregida de _showErrorDialog
   void _showErrorDialog(String title, String message, {bool showSettingsButton = false}) {
     showDialog(
       context: context,
@@ -116,7 +118,8 @@ class _CheckInScreenState extends State<CheckInScreen> {
             TextButton(
               onPressed: () async {
                 Navigator.of(context).pop();
-                await _cameraCapability.openAppSettings();
+                // Usar capability a través de AppPolicy
+                await widget.appPolicy.cameraCapability.openAppSettings();
               },
               child: Text(translateText('Abrir Configuración', _isDecapodianMode)),
             ),
@@ -132,6 +135,9 @@ class _CheckInScreenState extends State<CheckInScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Usar la policy para decidir si mostrar el botón
+    final shouldShowCameraButton = widget.appPolicy.shouldShowCameraButton();
+
     return Scaffold(
       appBar: AppBar(
         title: Text(translateText('Check-in de Pacientes', _isDecapodianMode)),
@@ -251,6 +257,21 @@ class _CheckInScreenState extends State<CheckInScreen> {
                   ),
                 ),
               ],
+              const SizedBox(height: 20),
+              // Mostrar el botón solo si la política lo permite
+              if (shouldShowCameraButton)
+                ElevatedButton.icon(
+                  onPressed: _isScanning ? null : _simulateQRScan,
+                  icon: const Icon(Icons.camera_alt),
+                  label: Text(_isScanning
+                      ? translateText('Escaneando...', _isDecapodianMode)
+                      : translateText('Iniciar Escaneo', _isDecapodianMode)),
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.all(16),
+                    backgroundColor: const Color(0xFFB71C1C),
+                    foregroundColor: Colors.white,
+                  ),
+                ),
             ],
           ),
         ),
