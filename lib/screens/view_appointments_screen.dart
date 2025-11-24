@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../services/translation_service.dart';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
 
 class ViewAppointmentsScreen extends StatefulWidget {
   const ViewAppointmentsScreen({super.key});
@@ -11,28 +13,134 @@ class ViewAppointmentsScreen extends StatefulWidget {
 
 class _ViewAppointmentsScreenState extends State<ViewAppointmentsScreen> {
   bool _isDecapodianMode = false;
+  bool _isFixingQRs = false;
+  int _fixedCount = 0;
 
   final CollectionReference appointments = FirebaseFirestore.instance.collection('appointments');
+
+  // Función para generar QR usando una API externa (QuickChart)
+  Future<Map<String, String>> _generateQRCode(String appointmentId, Map<String, dynamic> appointmentData) async {
+    try {
+      // Crear datos del QR
+      final qrData = {
+        'id': appointmentId,
+        'patient': appointmentData['patient'] ?? '',
+        'date': appointmentData['date'] != null
+            ? (appointmentData['date'] as Timestamp).toDate().toIso8601String()
+            : '',
+        'time': appointmentData['time'] ?? '',
+      };
+
+      final qrDataString = jsonEncode(qrData);
+
+      // Generar URL del QR usando QuickChart API (gratuita)
+      final qrImageUrl = Uri.encodeFull(
+          'https://quickchart.io/qr?text=${Uri.encodeComponent(qrDataString)}&size=300'
+      );
+
+      return {
+        'qrData': qrDataString,
+        'qrImageUrl': qrImageUrl,
+      };
+    } catch (e) {
+      print('Error generando QR: $e');
+      rethrow;
+    }
+  }
+
+  // Función para corregir todas las citas sin QR
+  Future<void> _fixAppointmentsWithoutQR() async {
+    setState(() {
+      _isFixingQRs = true;
+      _fixedCount = 0;
+    });
+
+    try {
+      // Obtener todas las citas
+      final snapshot = await appointments.get();
+
+      int fixedInBatch = 0;
+
+      for (var doc in snapshot.docs) {
+        final data = doc.data() as Map<String, dynamic>?;
+
+        // Verificar si la cita no tiene QR o si está incompleto
+        if (data != null &&
+            (data['qrImageUrl'] == null ||
+                data['qrData'] == null ||
+                data['qrImageUrl'].toString().isEmpty ||
+                data['qrData'].toString().isEmpty)) {
+
+          // Generar nuevo QR
+          try {
+            final qrInfo = await _generateQRCode(doc.id, data);
+
+            // Actualizar el documento en Firebase
+            await doc.reference.update({
+              'qrData': qrInfo['qrData'],
+              'qrImageUrl': qrInfo['qrImageUrl'],
+              'qrFixedAt': FieldValue.serverTimestamp(),
+            });
+
+            fixedInBatch++;
+            setState(() {
+              _fixedCount++;
+            });
+
+            // Pequeña pausa para no saturar la API
+            await Future.delayed(const Duration(milliseconds: 300));
+          } catch (e) {
+            print('Error corrigiendo cita ${doc.id}: $e');
+          }
+        }
+      }
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              translateText(
+                'Se corrigieron $_fixedCount citas',
+                _isDecapodianMode,
+              ),
+            ),
+            backgroundColor: Colors.green,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              translateText('Error al corregir citas: $e', _isDecapodianMode),
+            ),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isFixingQRs = false;
+        });
+      }
+    }
+  }
 
   // Función para determinar el color según la fecha de la cita
   Color _getAppointmentColor(DateTime appointmentDate) {
     final now = DateTime.now();
     final difference = appointmentDate.difference(now);
 
-    // Si la cita es hoy
     if (difference.inDays == 0) {
       return Colors.red;
-    }
-    // Si la cita es en los próximos 7 días
-    else if (difference.inDays > 0 && difference.inDays <= 7) {
+    } else if (difference.inDays > 0 && difference.inDays <= 7) {
       return Colors.yellow;
-    }
-    // Si la cita es en más de 7 días
-    else if (difference.inDays > 7) {
+    } else if (difference.inDays > 7) {
       return Colors.green;
-    }
-    // Si la cita ya pasó
-    else {
+    } else {
       return Colors.grey;
     }
   }
@@ -92,7 +200,6 @@ class _ViewAppointmentsScreenState extends State<ViewAppointmentsScreen> {
           }
 
           List<Map<String, dynamic>> appointmentsList = snapshot.data!.docs.map((DocumentSnapshot doc) {
-            // Asegurarse de que data no sea nulo
             Map<String, dynamic> data = doc.data() as Map<String, dynamic>? ?? {};
             data['id'] = doc.id;
             return data;
@@ -104,7 +211,6 @@ class _ViewAppointmentsScreenState extends State<ViewAppointmentsScreen> {
             itemBuilder: (context, index) {
               final appointment = appointmentsList[index];
 
-              // Manejar seguro de la fecha
               DateTime appointmentDate;
               if (appointment['date'] is Timestamp) {
                 appointmentDate = (appointment['date'] as Timestamp).toDate();
@@ -113,6 +219,11 @@ class _ViewAppointmentsScreenState extends State<ViewAppointmentsScreen> {
               }
 
               Color appointmentColor = _getAppointmentColor(appointmentDate);
+
+              // Verificar si falta QR
+              bool missingQR = appointment['qrImageUrl'] == null ||
+                  appointment['qrData'] == null ||
+                  appointment['qrImageUrl'].toString().isEmpty;
 
               return Card(
                 margin: const EdgeInsets.only(bottom: 16),
@@ -194,8 +305,23 @@ class _ViewAppointmentsScreenState extends State<ViewAppointmentsScreen> {
                                 translateText('Código QR:', _isDecapodianMode),
                                 style: const TextStyle(fontWeight: FontWeight.bold),
                               ),
-                              // Mostrar QR de forma segura
-                              if (appointment['qrImageUrl'] != null)
+
+                              // Mostrar advertencia si falta QR
+                              if (missingQR)
+                                Row(
+                                  children: [
+                                    const Icon(Icons.warning, color: Colors.orange, size: 20),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      translateText('QR faltante', _isDecapodianMode),
+                                      style: const TextStyle(
+                                        color: Colors.orange,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ],
+                                )
+                              else if (appointment['qrImageUrl'] != null)
                                 Row(
                                   children: [
                                     Image.network(
@@ -211,6 +337,8 @@ class _ViewAppointmentsScreenState extends State<ViewAppointmentsScreen> {
                                       child: Text(
                                         appointment['qrData']?.toString() ?? 'QR sin datos',
                                         style: const TextStyle(fontSize: 12),
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
                                       ),
                                     ),
                                   ],
@@ -220,7 +348,6 @@ class _ViewAppointmentsScreenState extends State<ViewAppointmentsScreen> {
                                   appointment['qrCode']?.toString() ?? 'QR no generado',
                                 ),
 
-                              // Mostrar estado de check-in si existe
                               if (appointment.containsKey('checkedIn') && appointment['checkedIn'] == true)
                                 Padding(
                                   padding: const EdgeInsets.only(top: 8.0),
@@ -253,6 +380,25 @@ class _ViewAppointmentsScreenState extends State<ViewAppointmentsScreen> {
             },
           );
         },
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: _isFixingQRs ? null : _fixAppointmentsWithoutQR,
+        backgroundColor: _isFixingQRs ? Colors.grey : const Color(0xFFB71C1C),
+        icon: _isFixingQRs
+            ? const SizedBox(
+          width: 20,
+          height: 20,
+          child: CircularProgressIndicator(
+            color: Colors.white,
+            strokeWidth: 2,
+          ),
+        )
+            : const Icon(Icons.qr_code_scanner),
+        label: Text(
+          _isFixingQRs
+              ? translateText('Corrigiendo... $_fixedCount', _isDecapodianMode)
+              : translateText('Corregir QRs', _isDecapodianMode),
+        ),
       ),
     );
   }
