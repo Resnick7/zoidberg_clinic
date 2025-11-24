@@ -92,7 +92,8 @@ class _ViewAppointmentsScreenState extends State<ViewAppointmentsScreen> {
           }
 
           List<Map<String, dynamic>> appointmentsList = snapshot.data!.docs.map((DocumentSnapshot doc) {
-            Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
+            // Asegurarse de que data no sea nulo
+            Map<String, dynamic> data = doc.data() as Map<String, dynamic>? ?? {};
             data['id'] = doc.id;
             return data;
           }).toList();
@@ -102,7 +103,15 @@ class _ViewAppointmentsScreenState extends State<ViewAppointmentsScreen> {
             itemCount: appointmentsList.length,
             itemBuilder: (context, index) {
               final appointment = appointmentsList[index];
-              DateTime appointmentDate = (appointment['date'] as Timestamp).toDate();
+
+              // Manejar seguro de la fecha
+              DateTime appointmentDate;
+              if (appointment['date'] is Timestamp) {
+                appointmentDate = (appointment['date'] as Timestamp).toDate();
+              } else {
+                appointmentDate = DateTime.now();
+              }
+
               Color appointmentColor = _getAppointmentColor(appointmentDate);
 
               return Card(
@@ -129,7 +138,7 @@ class _ViewAppointmentsScreenState extends State<ViewAppointmentsScreen> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    appointment['patient'],
+                                    appointment['patient']?.toString() ?? 'Paciente sin nombre',
                                     style: const TextStyle(
                                       fontSize: 18,
                                       fontWeight: FontWeight.bold,
@@ -146,7 +155,7 @@ class _ViewAppointmentsScreenState extends State<ViewAppointmentsScreen> {
                                         ),
                                       ),
                                       Text(
-                                        appointment['time'],
+                                        appointment['time']?.toString() ?? 'Sin hora',
                                         style: const TextStyle(
                                           fontWeight: FontWeight.w500,
                                         ),
@@ -179,13 +188,60 @@ class _ViewAppointmentsScreenState extends State<ViewAppointmentsScreen> {
                                 translateText('Motivo:', _isDecapodianMode),
                                 style: const TextStyle(fontWeight: FontWeight.bold),
                               ),
-                              Text(appointment['reason']),
+                              Text(appointment['reason']?.toString() ?? 'Sin motivo especificado'),
                               const SizedBox(height: 8),
                               Text(
                                 translateText('Código QR:', _isDecapodianMode),
                                 style: const TextStyle(fontWeight: FontWeight.bold),
                               ),
-                              Text(appointment['qrCode']),
+                              // Mostrar QR de forma segura
+                              if (appointment['qrImageUrl'] != null)
+                                Row(
+                                  children: [
+                                    Image.network(
+                                      appointment['qrImageUrl'],
+                                      width: 50,
+                                      height: 50,
+                                      errorBuilder: (context, error, stackTrace) {
+                                        return const Icon(Icons.qr_code, size: 50);
+                                      },
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: Text(
+                                        appointment['qrData']?.toString() ?? 'QR sin datos',
+                                        style: const TextStyle(fontSize: 12),
+                                      ),
+                                    ),
+                                  ],
+                                )
+                              else
+                                Text(
+                                  appointment['qrCode']?.toString() ?? 'QR no generado',
+                                ),
+
+                              // Mostrar estado de check-in si existe
+                              if (appointment.containsKey('checkedIn') && appointment['checkedIn'] == true)
+                                Padding(
+                                  padding: const EdgeInsets.only(top: 8.0),
+                                  child: Row(
+                                    children: [
+                                      const Icon(
+                                        Icons.check_circle,
+                                        color: Colors.green,
+                                        size: 16,
+                                      ),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        translateText('Check-in realizado', _isDecapodianMode),
+                                        style: const TextStyle(
+                                          color: Colors.green,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
                             ],
                           ),
                         ),

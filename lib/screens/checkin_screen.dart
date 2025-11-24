@@ -2,12 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../services/translation_service.dart';
-import '../policies/app_policy.dart'; // Importar AppPolicy
-import '../capabilities/camera_capability.dart'; // AGREGAR ESTA IMPORTACIÓN
+import '../policies/app_policy.dart';
+import '../capabilities/camera_capability.dart';
+import 'package:mobile_scanner/mobile_scanner.dart';
+import 'dart:convert';
 import 'dart:math';
 
 class CheckInScreen extends StatefulWidget {
-  final AppPolicy appPolicy; // Inyectar AppPolicy
+  final AppPolicy appPolicy;
 
   const CheckInScreen({super.key, required this.appPolicy});
 
@@ -16,13 +18,11 @@ class CheckInScreen extends StatefulWidget {
 }
 
 class _CheckInScreenState extends State<CheckInScreen> {
-  // Eliminar esta línea: final CameraCapability _cameraCapability = CameraCapability();
   String _scannedCode = '';
   bool _isScanning = false;
   bool _isDecapodianMode = false;
   String _statusMessage = '';
 
-  // Función actualizada para usar la policy
   Future<void> _simulateQRScan() async {
     setState(() {
       _isScanning = true;
@@ -34,7 +34,10 @@ class _CheckInScreenState extends State<CheckInScreen> {
       final result = await widget.appPolicy.cameraCapability.requestCameraAccess();
 
       if (result.success) {
-        await _startScanning();
+        setState(() {
+          _statusMessage = translateText('Escaneando código QR...', _isDecapodianMode);
+        });
+        // El escaneo se manejará con el widget MobileScanner
       } else {
         setState(() {
           _isScanning = false;
@@ -50,28 +53,67 @@ class _CheckInScreenState extends State<CheckInScreen> {
     }
   }
 
-  Future<void> _startScanning() async {
-    setState(() {
-      _statusMessage = translateText('Escaneando código QR...', _isDecapodianMode);
-    });
+  Future<void> _verifyQRCode(String qrData) async {
+    try {
+      // Decodificar el JSON del QR
+      final Map<String, dynamic> decodedData = jsonDecode(qrData);
+      final appointmentId = decodedData['appointmentId'];
+      final token = decodedData['token'];
 
-    // Simulación de escaneo (aquí integrarías mobile_scanner)
-    await Future.delayed(const Duration(seconds: 2));
+      // Buscar la cita en Firestore
+      final appointmentDoc = await FirebaseFirestore.instance
+          .collection('appointments')
+          .doc(appointmentId)
+          .get();
 
-    final codes = ['QR-1234', 'QR-5678', 'QR-9012'];
-    setState(() {
-      _scannedCode = codes[Random().nextInt(codes.length)];
-      _isScanning = false;
-      _statusMessage = translateText('¡Escaneo exitoso!', _isDecapodianMode);
-    });
+      if (!appointmentDoc.exists) {
+        setState(() {
+          _statusMessage = translateText('Cita no encontrada', _isDecapodianMode);
+        });
+        return;
+      }
 
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(translateText('¡Paciente registrado! Código: $_scannedCode', _isDecapodianMode)),
-          backgroundColor: Colors.green,
-        ),
-      );
+      final appointment = appointmentDoc.data()!;
+
+      // Verificar si el token coincide
+      if (appointment['qrToken'] != token) {
+        setState(() {
+          _statusMessage = translateText('Código QR inválido', _isDecapodianMode);
+        });
+        return;
+      }
+
+      // Verificar si ya se hizo check-in
+      if (appointment['checkedIn'] == true) {
+        setState(() {
+          _statusMessage = translateText('Check-in ya realizado', _isDecapodianMode);
+        });
+        return;
+      }
+
+      // Actualizar el estado de check-in
+      await FirebaseFirestore.instance
+          .collection('appointments')
+          .doc(appointmentId)
+          .update({'checkedIn': true});
+
+      setState(() {
+        _scannedCode = appointmentId;
+        _statusMessage = translateText('¡Check-in exitoso!', _isDecapodianMode);
+      });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(translateText('¡Paciente registrado! Cita: $appointmentId', _isDecapodianMode)),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      setState(() {
+        _statusMessage = translateText('Error al verificar QR: $e', _isDecapodianMode);
+      });
     }
   }
 
@@ -106,7 +148,6 @@ class _CheckInScreenState extends State<CheckInScreen> {
     }
   }
 
-// Versión corregida de _showErrorDialog
   void _showErrorDialog(String title, String message, {bool showSettingsButton = false}) {
     showDialog(
       context: context,
@@ -192,10 +233,19 @@ class _CheckInScreenState extends State<CheckInScreen> {
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: _isScanning
-                    ? const Center(
-                  child: CircularProgressIndicator(
-                    color: Color(0xFFB71C1C),
-                  ),
+                    ? MobileScanner(
+                  onDetect: (capture) {
+                    final List<Barcode> barcodes = capture.barcodes;
+                    if (barcodes.isNotEmpty) {
+                      final String? qrData = barcodes.first.rawValue;
+                      if (qrData != null) {
+                        setState(() {
+                          _isScanning = false;
+                        });
+                        _verifyQRCode(qrData);
+                      }
+                    }
+                  },
                 )
                     : Center(
                   child: Text(
