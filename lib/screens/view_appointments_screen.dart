@@ -145,26 +145,31 @@ class _ViewAppointmentsScreenState extends State<ViewAppointmentsScreen> {
     }
   }
 
-  // Función para obtener el texto de la diferencia de tiempo
+  // Función para obtener el texto de la diferencia de tiempo comparando fechas (por dia)
   String _getTimeDifferenceText(DateTime appointmentDate) {
     final now = DateTime.now();
-    final difference = appointmentDate.difference(now);
 
-    if (difference.inDays == 0) {
+    // Normalizar a medianoche para comparar solo fechas
+    final today = DateTime(now.year, now.month, now.day);
+    final appointmentDay = DateTime(appointmentDate.year, appointmentDate.month, appointmentDate.day);
+
+    final difference = appointmentDay.difference(today).inDays;
+
+    if (difference == 0) {
       return translateText('Hoy', _isDecapodianMode);
-    } else if (difference.inDays == 1) {
+    } else if (difference == 1) {
       return translateText('Mañana', _isDecapodianMode);
-    } else if (difference.inDays > 0 && difference.inDays < 7) {
-      return translateText('En ${difference.inDays} días', _isDecapodianMode);
-    } else if (difference.inDays == 7) {
+    } else if (difference > 1 && difference < 7) {
+      return translateText('En $difference días', _isDecapodianMode);
+    } else if (difference == 7) {
       return translateText('En una semana', _isDecapodianMode);
-    } else if (difference.inDays > 7) {
-      return translateText('En ${difference.inDays ~/ 7} semanas', _isDecapodianMode);
+    } else if (difference > 7) {
+      final weeks = difference ~/ 7;
+      return translateText('En $weeks semanas', _isDecapodianMode);
     } else {
       return translateText('Fecha pasada', _isDecapodianMode);
     }
   }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(

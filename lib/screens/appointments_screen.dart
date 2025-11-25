@@ -36,7 +36,6 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
       return;
     }
 
-    // Mostrar indicador de carga
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(translateText('Agendando cita...', _isDecapodianMode)),
@@ -45,7 +44,6 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
     );
 
     try {
-      // Guardar cita en Firestore
       final appointmentRef = await appointments.add({
         'patient': _patientController.text,
         'reason': _reasonController.text,
@@ -53,24 +51,19 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
         'time': '${_selectedTime.hour}:${_selectedTime.minute.toString().padLeft(2, '0')}',
       });
 
-      // Obtener el ID de la cita recién creada
       final appointmentId = appointmentRef.id;
-
-      // Generar el código QR con el ID de la cita
       final qrResult = await QRService.generateQRCode(appointmentId);
 
-      // Actualizar el documento con la información del QR
       await appointmentRef.update({
         'qrImageUrl': qrResult['imageUrl'],
         'qrToken': qrResult['token'],
         'qrData': qrResult['qrData'],
-        'checkedIn': false, // Para saber si ya se hizo check-in
+        'checkedIn': false,
       });
 
       _patientController.clear();
       _reasonController.clear();
 
-      // Mostrar mensaje de éxito
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(translateText('¡Cita agendada exitosamente!', _isDecapodianMode)),
@@ -90,7 +83,6 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
 
   Future<void> _scheduleNotification(DateTime date, String time, String patient) async {
     try {
-      // Obtener duración configurada
       final duration = await NotificationHelper.getNotificationDuration();
 
       await _notificationService.scheduleAppointmentNotification(
@@ -98,7 +90,7 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
         patientName: patient,
         appointmentDate: date,
         time: time,
-        customDuration: duration, // Usar duración configurada
+        customDuration: duration,
       );
       print('✅ Notificación programada para ${duration.inMinutes} minutos antes');
     } catch (e) {
@@ -123,11 +115,13 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
           ),
         ],
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            Card(
+      resizeToAvoidBottomInset: true,
+      body: Column(
+        children: [
+          // SOLUCIÓN: Formulario scrolleable
+          SingleChildScrollView(
+            padding: const EdgeInsets.all(16),
+            child: Card(
               child: Padding(
                 padding: const EdgeInsets.all(16),
                 child: Column(
@@ -209,105 +203,113 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
                 ),
               ),
             ),
-            const SizedBox(height: 20),
-            Text(
+          ),
+          const SizedBox(height: 20),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Text(
               translateText('Citas Programadas', _isDecapodianMode),
               style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
-            const SizedBox(height: 10),
-            Expanded(
-              child: StreamBuilder<QuerySnapshot>(
-                stream: appointments.snapshots(),
-                builder: (BuildContext context, AsyncSnapshot<QuerySnapshot> snapshot) {
-                  if (snapshot.hasError) {
-                    return Text(translateText('Error al cargar citas', _isDecapodianMode));
-                  }
+          ),
+          const SizedBox(height: 10),
+          // Lista NO scrolleable dentro de Expanded
+          Expanded(
+            child: StreamBuilder<QuerySnapshot>(
+              stream: appointments.snapshots(),
+              builder: (BuildContext context, AsyncSnapshot<QuerySnapshot> snapshot) {
+                if (snapshot.hasError) {
+                  return Text(translateText('Error al cargar citas', _isDecapodianMode));
+                }
 
-                  if (snapshot.connectionState == ConnectionState.waiting) {
-                    return const Center(child: CircularProgressIndicator());
-                  }
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
 
-                  if (snapshot.data!.docs.isEmpty) {
-                    return Center(
-                      child: Text(translateText('No hay citas programadas', _isDecapodianMode)),
-                    );
-                  }
-
-                  List<Map<String, dynamic>> appointmentsList = snapshot.data!.docs.map((DocumentSnapshot doc) {
-                    // Asegurarse de que data no sea nulo
-                    Map<String, dynamic> data = doc.data() as Map<String, dynamic>? ?? {};
-                    data['id'] = doc.id;
-                    return data;
-                  }).toList();
-
-                  return ListView.builder(
-                    itemCount: appointmentsList.length,
-                    itemBuilder: (context, index) {
-                      final appointment = appointmentsList[index];
-
-                      // Manejar seguro de la fecha
-                      DateTime appointmentDate;
-                      if (appointment['date'] is Timestamp) {
-                        appointmentDate = (appointment['date'] as Timestamp).toDate();
-                      } else {
-                        appointmentDate = DateTime.now();
-                      }
-
-                      return Card(
-                        child: ListTile(
-                          leading: const Icon(Icons.person, color: Color(0xFFB71C1C)),
-                          title: Text(appointment['patient']?.toString() ?? 'Paciente sin nombre'),
-                          subtitle: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(appointment['reason']?.toString() ?? 'Sin motivo especificado'),
-                              Text(translateText('Fecha: ${appointmentDate.day}/${appointmentDate.month}/${appointmentDate.year}', _isDecapodianMode)),
-                              // Mostrar QR solo si existe
-                              if (appointment['qrImageUrl'] != null)
-                                Row(
-                                  children: [
-                                    Text(translateText('QR: ', _isDecapodianMode)),
-                                    Image.network(
-                                      appointment['qrImageUrl'],
-                                      width: 50,
-                                      height: 50,
-                                      errorBuilder: (context, error, stackTrace) {
-                                        return const Icon(Icons.qr_code, size: 50);
-                                      },
-                                    ),
-                                  ],
-                                )
-                              else
-                                Text(translateText('QR: No generado', _isDecapodianMode)),
-                            ],
-                          ),
-                          trailing: Column(
-                            crossAxisAlignment: CrossAxisAlignment.end,
-                            children: [
-                              Text(
-                                appointment['time']?.toString() ?? 'Sin hora',
-                                style: const TextStyle(fontWeight: FontWeight.bold),
-                              ),
-                              // Mostrar estado de check-in solo si existe el campo
-                              if (appointment['checkedIn'] == true)
-                                const Icon(
-                                  Icons.check_circle,
-                                  color: Colors.green,
-                                  size: 20,
-                                ),
-                            ],
-                          ),
-                        ),
-                      );
-                    },
+                if (snapshot.data!.docs.isEmpty) {
+                  return Center(
+                    child: Text(translateText('No hay citas programadas', _isDecapodianMode)),
                   );
-                },
-              ),
+                }
+
+                List<Map<String, dynamic>> appointmentsList = snapshot.data!.docs.map((DocumentSnapshot doc) {
+                  Map<String, dynamic> data = doc.data() as Map<String, dynamic>? ?? {};
+                  data['id'] = doc.id;
+                  return data;
+                }).toList();
+
+                return ListView.builder(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  itemCount: appointmentsList.length,
+                  itemBuilder: (context, index) {
+                    final appointment = appointmentsList[index];
+
+                    DateTime appointmentDate;
+                    if (appointment['date'] is Timestamp) {
+                      appointmentDate = (appointment['date'] as Timestamp).toDate();
+                    } else {
+                      appointmentDate = DateTime.now();
+                    }
+
+                    return Card(
+                      child: ListTile(
+                        leading: const Icon(Icons.person, color: Color(0xFFB71C1C)),
+                        title: Text(appointment['patient']?.toString() ?? 'Paciente sin nombre'),
+                        subtitle: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(appointment['reason']?.toString() ?? 'Sin motivo especificado'),
+                            Text(translateText('Fecha: ${appointmentDate.day}/${appointmentDate.month}/${appointmentDate.year}', _isDecapodianMode)),
+                            if (appointment['qrImageUrl'] != null)
+                              Row(
+                                children: [
+                                  Text(translateText('QR: ', _isDecapodianMode)),
+                                  Image.network(
+                                    appointment['qrImageUrl'],
+                                    width: 50,
+                                    height: 50,
+                                    errorBuilder: (context, error, stackTrace) {
+                                      return const Icon(Icons.qr_code, size: 50);
+                                    },
+                                  ),
+                                ],
+                              )
+                            else
+                              Text(translateText('QR: No generado', _isDecapodianMode)),
+                          ],
+                        ),
+                        trailing: Column(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            Text(
+                              appointment['time']?.toString() ?? 'Sin hora',
+                              style: const TextStyle(fontWeight: FontWeight.bold),
+                            ),
+                            if (appointment['checkedIn'] == true)
+                              const Icon(
+                                Icons.check_circle,
+                                color: Colors.green,
+                                size: 20,
+                              ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                );
+              },
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
+  }
+
+  @override
+  void dispose() {
+    _patientController.dispose();
+    _reasonController.dispose();
+    super.dispose();
   }
 }
 

@@ -77,88 +77,102 @@ class _AuthScreenState extends State<AuthScreen> {
           ),
         ],
       ),
-      body: Center(
-        child: Container(
-          margin: const EdgeInsets.all(20),
-          child: Card(
-            elevation: 8,
-            color: Colors.white,
-            child: Padding(
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(
-                    Icons.local_hospital,
-                    size: 80,
-                    color: Color(0xFFB71C1C),
-                  ),
-                  const SizedBox(height: 20),
-                  Text(
-                    translateText('¡Bienvenido a mi clínica!', _isDecapodianMode),
-                    style: const TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
+      // SOLUCIÓN: Agregar resizeToAvoidBottomInset
+      resizeToAvoidBottomInset: true,
+      body: SafeArea(
+        child: SingleChildScrollView(
+          // SOLUCIÓN: Envolver todo en SingleChildScrollView
+          padding: const EdgeInsets.all(20),
+          child: Center(
+            child: Card(
+              elevation: 8,
+              color: Colors.white,
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(
+                      Icons.local_hospital,
+                      size: 80,
                       color: Color(0xFFB71C1C),
                     ),
-                  ),
-                  const SizedBox(height: 10),
-                  Text(
-                    translateText('"¿Por qué no Zoidberg como tu doctor?"', _isDecapodianMode),
-                    style: const TextStyle(
-                      fontSize: 14,
-                      fontStyle: FontStyle.italic,
-                      color: Colors.grey,
-                    ),
-                  ),
-                  const SizedBox(height: 30),
-                  TextField(
-                    controller: _emailController,
-                    decoration: InputDecoration(
-                      labelText: translateText('Email', _isDecapodianMode),
-                      border: const OutlineInputBorder(),
-                      prefixIcon: const Icon(Icons.email),
-                    ),
-                    keyboardType: TextInputType.emailAddress,
-                  ),
-                  const SizedBox(height: 16),
-                  TextField(
-                    controller: _passwordController,
-                    obscureText: true,
-                    decoration: InputDecoration(
-                      labelText: translateText('Contraseña', _isDecapodianMode),
-                      border: const OutlineInputBorder(),
-                      prefixIcon: const Icon(Icons.lock),
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: _isLoading ? null : _login,
-                      style: ElevatedButton.styleFrom(
-                        padding: const EdgeInsets.all(16),
-                        backgroundColor: const Color(0xFFB71C1C),
-                      ),
-                      child: _isLoading
-                          ? const CircularProgressIndicator(color: Colors.white)
-                          : Text(
-                        translateText('Iniciar Sesión', _isDecapodianMode),
-                        style: const TextStyle(fontSize: 16, color: Colors.white),
+                    const SizedBox(height: 20),
+                    Text(
+                      translateText('¡Bienvenido a mi clínica!', _isDecapodianMode),
+                      style: const TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFFB71C1C),
                       ),
                     ),
-                  ),
-                  const SizedBox(height: 10),
-                  Text(
-                    translateText('Ingresa con tu cuenta de doctor', _isDecapodianMode),
-                    style: const TextStyle(fontSize: 12, color: Colors.grey),
-                  ),
-                ],
+                    const SizedBox(height: 10),
+                    Text(
+                      translateText('"¿Por qué no Zoidberg como tu doctor?"', _isDecapodianMode),
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontStyle: FontStyle.italic,
+                        color: Colors.grey,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 30),
+                    TextField(
+                      controller: _emailController,
+                      decoration: InputDecoration(
+                        labelText: translateText('Email', _isDecapodianMode),
+                        border: const OutlineInputBorder(),
+                        prefixIcon: const Icon(Icons.email),
+                      ),
+                      keyboardType: TextInputType.emailAddress,
+                    ),
+                    const SizedBox(height: 16),
+                    TextField(
+                      controller: _passwordController,
+                      obscureText: true,
+                      decoration: InputDecoration(
+                        labelText: translateText('Contraseña', _isDecapodianMode),
+                        border: const OutlineInputBorder(),
+                        prefixIcon: const Icon(Icons.lock),
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        onPressed: _isLoading ? null : _login,
+                        style: ElevatedButton.styleFrom(
+                          padding: const EdgeInsets.all(16),
+                          backgroundColor: const Color(0xFFB71C1C),
+                        ),
+                        child: _isLoading
+                            ? const CircularProgressIndicator(color: Colors.white)
+                            : Text(
+                          translateText('Iniciar Sesión', _isDecapodianMode),
+                          style: const TextStyle(fontSize: 16, color: Colors.white),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    Text(
+                      translateText('Ingresa con tu cuenta de doctor', _isDecapodianMode),
+                      style: const TextStyle(fontSize: 12, color: Colors.grey),
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
         ),
       ),
     );
+  }
+
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
   }
 }
